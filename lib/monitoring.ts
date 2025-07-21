@@ -6,6 +6,15 @@ interface MonitoringConfig {
   googleAnalyticsId?: string
 }
 
+declare global {
+  interface Window {
+    dataLayer: any[]
+    gtag: (...args: any[]) => void
+    mixpanel: any
+    Sentry: any
+  }
+}
+
 class Monitoring {
   private initialized = false
   
@@ -34,6 +43,9 @@ class Monitoring {
   
   private initSentry(dsn: string) {
     // Dynamic import to reduce bundle size
+    // Sentry integration disabled - install @sentry/nextjs to enable
+    console.log('Sentry integration disabled - install @sentry/nextjs to enable')
+    /*
     import('@sentry/nextjs').then(({ init }) => {
       init({
         dsn,
@@ -54,10 +66,14 @@ class Monitoring {
         },
       })
     }).catch(console.error)
+    */
   }
   
   private initMixpanel(token: string) {
     // Dynamic import
+    // Mixpanel integration disabled - install mixpanel-browser to enable
+    console.log('Mixpanel integration disabled - install mixpanel-browser to enable')
+    /*
     import('mixpanel-browser').then(({ default: mixpanel }) => {
       mixpanel.init(token, {
         debug: false,
@@ -65,6 +81,7 @@ class Monitoring {
         persistence: 'localStorage',
       })
     }).catch(console.error)
+    */
   }
   
   private initGoogleAnalytics(id: string) {
@@ -76,11 +93,11 @@ class Monitoring {
     
     // Initialize gtag
     window.dataLayer = window.dataLayer || []
-    function gtag(...args: any[]) {
+    window.gtag = function(...args: any[]) {
       window.dataLayer.push(args)
     }
-    gtag('js', new Date())
-    gtag('config', id, {
+    window.gtag('js', new Date())
+    window.gtag('config', id, {
       page_path: window.location.pathname,
     })
   }
@@ -90,13 +107,13 @@ class Monitoring {
     if (process.env.NODE_ENV !== 'production') return
     
     // Send to Mixpanel
-    if (typeof window !== 'undefined' && (window as any).mixpanel) {
-      (window as any).mixpanel.track(eventName, properties)
+    if (typeof window !== 'undefined' && window.mixpanel) {
+      window.mixpanel.track(eventName, properties)
     }
     
     // Send to GA
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', eventName, properties)
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('event', eventName, properties)
     }
   }
   
@@ -105,15 +122,15 @@ class Monitoring {
     if (process.env.NODE_ENV !== 'production') return
     
     // Sentry
-    if (typeof window !== 'undefined' && (window as any).Sentry) {
-      (window as any).Sentry.setUser({ id: userId, ...traits })
+    if (typeof window !== 'undefined' && window.Sentry) {
+      window.Sentry.setUser({ id: userId, ...traits })
     }
     
     // Mixpanel
-    if (typeof window !== 'undefined' && (window as any).mixpanel) {
-      (window as any).mixpanel.identify(userId)
+    if (typeof window !== 'undefined' && window.mixpanel) {
+      window.mixpanel.identify(userId)
       if (traits) {
-        (window as any).mixpanel.people.set(traits)
+        window.mixpanel.people.set(traits)
       }
     }
   }
@@ -123,13 +140,13 @@ class Monitoring {
     if (process.env.NODE_ENV !== 'production') return
     
     // Sentry
-    if (typeof window !== 'undefined' && (window as any).Sentry) {
-      (window as any).Sentry.setUser(null)
+    if (typeof window !== 'undefined' && window.Sentry) {
+      window.Sentry.setUser(null)
     }
     
     // Mixpanel
-    if (typeof window !== 'undefined' && (window as any).mixpanel) {
-      (window as any).mixpanel.reset()
+    if (typeof window !== 'undefined' && window.mixpanel) {
+      window.mixpanel.reset()
     }
   }
 }

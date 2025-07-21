@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useEffect, useCallback } from 'react'
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { throttle } from '@/lib/cache'
 
 interface VirtualListProps<T> {
@@ -33,13 +33,13 @@ export default function VirtualList<T>({
   const totalHeight = items.length * itemHeight
   const offsetY = startIndex * itemHeight
   
-  const handleScroll = useCallback(
-    throttle(() => {
+  const handleScroll = useMemo(
+    () => throttle(() => {
       if (containerRef.current) {
         setScrollTop(containerRef.current.scrollTop)
       }
     }, 16), // ~60fps
-    [] // eslint-disable-line react-hooks/exhaustive-deps
+    []
   )
   
   useEffect(() => {

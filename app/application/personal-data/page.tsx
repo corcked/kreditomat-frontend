@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -94,26 +94,7 @@ export default function PersonalDataPage() {
   const [saving, setSaving] = useState(false)
   const [step, setStep] = useState(1) // 1: Personal, 2: Work, 3: Contacts
   
-  // Check authentication and load existing data
-  useEffect(() => {
-    const token = getToken()
-    if (!token) {
-      router.push("/auth/login")
-      return
-    }
-    
-    // Check if we have application data
-    const appData = sessionStorage.getItem("applicationData")
-    if (!appData) {
-      router.push("/application/new")
-      return
-    }
-    
-    // Load existing personal data
-    loadPersonalData()
-  }, [router])
-  
-  const loadPersonalData = async () => {
+  const loadPersonalData = useCallback(async () => {
     setLoading(true)
     try {
       const data = await api.personalData.get()
@@ -129,7 +110,29 @@ export default function PersonalDataPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+  
+  // Check authentication and load existing data
+  useEffect(() => {
+    // Skip during SSG/SSR
+    if (typeof window === 'undefined') return
+    
+    const token = getToken()
+    if (!token) {
+      router.push("/auth/login")
+      return
+    }
+    
+    // Check if we have application data
+    const appData = sessionStorage.getItem("applicationData")
+    if (!appData) {
+      router.push("/application/new")
+      return
+    }
+    
+    // Load existing personal data
+    loadPersonalData()
+  }, [router, loadPersonalData])
   
   const validateStep = (stepNumber: number): boolean => {
     const newErrors: Partial<Record<keyof PersonalData, string>> = {}

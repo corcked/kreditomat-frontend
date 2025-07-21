@@ -21,7 +21,7 @@ export function useErrorHandler() {
       handleError(event.reason, { type: 'unhandledRejection' })
     }
 
-    const handleError = (event: ErrorEvent) => {
+    const handleWindowError = (event: ErrorEvent) => {
       handleError(event.error, {
         type: 'error',
         message: event.message,
@@ -32,11 +32,11 @@ export function useErrorHandler() {
     }
 
     window.addEventListener('unhandledrejection', handleUnhandledRejection)
-    window.addEventListener('error', handleError)
+    window.addEventListener('error', handleWindowError)
 
     return () => {
       window.removeEventListener('unhandledrejection', handleUnhandledRejection)
-      window.removeEventListener('error', handleError)
+      window.removeEventListener('error', handleWindowError)
     }
   }, [handleError])
 
