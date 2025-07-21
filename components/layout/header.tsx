@@ -2,8 +2,8 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState, useEffect } from "react"
-import { Menu, X, User, LogOut, Settings, ChevronDown } from "lucide-react"
+import { useState } from "react"
+import { Menu, X, User, LogOut, Settings, ChevronDown, CreditCard, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { AuthService } from "@/lib/auth"
+import { useAuth } from "@/contexts/auth-context"
 import { cn } from "@/lib/utils"
 
 const navigation = [
@@ -27,34 +27,17 @@ const navigation = [
 export default function Header() {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [userPhone, setUserPhone] = useState<string | null>(null)
-
-  useEffect(() => {
-    // Check auth status
-    const checkAuth = () => {
-      const authenticated = AuthService.isAuthenticated()
-      setIsAuthenticated(authenticated)
-      
-      if (authenticated) {
-        const userId = AuthService.getUserId()
-        // In real app, would fetch user data
-        setUserPhone("+998901234567") // Mock phone
-      }
-    }
-
-    checkAuth()
-    
-    // Listen for auth changes
-    window.addEventListener("storage", checkAuth)
-    return () => window.removeEventListener("storage", checkAuth)
-  }, [])
+  const { user, isAuthenticated, logout, loading } = useAuth()
 
   const handleLogout = async () => {
-    await AuthService.logout()
-    setIsAuthenticated(false)
-    setUserPhone(null)
-    window.location.href = "/"
+    await logout()
+    setMobileMenuOpen(false)
+  }
+
+  const formatPhone = (phone?: string) => {
+    if (!phone) return ""
+    // Show last 4 digits
+    return `****${phone.slice(-4)}`
   }
 
   return (
@@ -88,7 +71,9 @@ export default function Header() {
 
           {/* Desktop Auth */}
           <div className="hidden md:flex md:items-center md:space-x-4">
-            {isAuthenticated ? (
+            {loading ? (
+              <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse" />
+            ) : isAuthenticated && user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 px-2">
@@ -97,12 +82,19 @@ export default function Header() {
                         <User className="h-4 w-4" />
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm">{userPhone?.slice(-4)}</span>
+                    <span className="text-sm">{formatPhone(user.phone_number)}</span>
                     <ChevronDown className="ml-1 h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Мой аккаунт</DropdownMenuLabel>
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">Мой аккаунт</p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        +{user.phone_number}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/profile">
@@ -111,11 +103,25 @@ export default function Header() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
+                    <Link href="/application/new">
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Новая заявка
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
                     <Link href="/applications">
                       <Settings className="mr-2 h-4 w-4" />
                       Мои заявки
                     </Link>
                   </DropdownMenuItem>
+                  {user.referral_code && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/referrals">
+                        <Users className="mr-2 h-4 w-4" />
+                        Рефералы
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
@@ -129,7 +135,7 @@ export default function Header() {
                   <Link href="/auth/login">Войти</Link>
                 </Button>
                 <Button asChild>
-                  <Link href="/auth/register">Регистрация</Link>
+                  <Link href="/application/new">Получить займ</Link>
                 </Button>
               </>
             )}
@@ -174,11 +180,11 @@ export default function Header() {
             
             {/* Mobile Auth */}
             <div className="border-t border-gray-200 pb-3 pt-4">
-              {isAuthenticated ? (
+              {isAuthenticated && user ? (
                 <div className="space-y-1">
                   <div className="px-3 py-2">
                     <p className="text-base font-medium text-gray-800">
-                      {userPhone}
+                      +{user.phone_number}
                     </p>
                   </div>
                   <Link
@@ -189,17 +195,30 @@ export default function Header() {
                     Профиль
                   </Link>
                   <Link
+                    href="/application/new"
+                    className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Новая заявка
+                  </Link>
+                  <Link
                     href="/applications"
                     className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Мои заявки
                   </Link>
+                  {user.referral_code && (
+                    <Link
+                      href="/referrals"
+                      className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Рефералы
+                    </Link>
+                  )}
                   <button
-                    onClick={() => {
-                      handleLogout()
-                      setMobileMenuOpen(false)
-                    }}
+                    onClick={handleLogout}
                     className="block w-full px-3 py-2 text-left text-base font-medium text-gray-700 hover:bg-gray-50"
                   >
                     Выйти
@@ -215,11 +234,11 @@ export default function Header() {
                     Войти
                   </Link>
                   <Link
-                    href="/auth/register"
+                    href="/application/new"
                     className="block px-3 py-2 text-base font-medium text-white bg-primary hover:bg-primary/90 rounded-md mx-3"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    Регистрация
+                    Получить займ
                   </Link>
                 </div>
               )}

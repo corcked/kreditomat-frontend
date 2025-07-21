@@ -4,7 +4,7 @@ import axios, { AxiosError, AxiosInstance } from 'axios';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Create axios instance
-const api: AxiosInstance = axios.create({
+const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
@@ -13,7 +13,7 @@ const api: AxiosInstance = axios.create({
 });
 
 // Request interceptor to add auth token
-api.interceptors.request.use(
+apiClient.interceptors.request.use(
   (config) => {
     // Get token from localStorage or cookies
     if (typeof window !== 'undefined') {
@@ -30,7 +30,7 @@ api.interceptors.request.use(
 );
 
 // Response interceptor to handle errors
-api.interceptors.response.use(
+apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     if (error.response) {
@@ -67,113 +67,194 @@ api.interceptors.response.use(
   }
 );
 
-// Auth API
-export const authApi = {
-  requestCode: async (phone: string) => {
-    const response = await api.post('/api/v1/auth/request', { phone });
-    return response.data;
+// API namespace with all endpoints
+export const api = {
+  // Auth endpoints
+  auth: {
+    request: async (data: { phone_number: string }) => {
+      const response = await apiClient.post('/api/v1/auth/request', data);
+      return response.data;
+    },
+    
+    verify: async (data: { phone_number: string; code: string }) => {
+      const response = await apiClient.post('/api/v1/auth/verify', data);
+      return response.data;
+    },
+    
+    logout: async () => {
+      const response = await apiClient.post('/api/v1/auth/logout');
+      return response.data;
+    },
+    
+    checkPhone: async (phone: string) => {
+      const response = await apiClient.get('/api/v1/auth/check-phone', { params: { phone } });
+      return response.data;
+    },
+    
+    getMe: async () => {
+      const response = await apiClient.get('/api/v1/auth/me');
+      return response.data;
+    },
   },
-  
-  verifyCode: async (phone: string, code: string) => {
-    const response = await api.post('/api/v1/auth/verify', { phone, code });
-    return response.data;
+
+  // Applications endpoints
+  applications: {
+    create: async (data: { amount: number; term: number; purpose?: string }) => {
+      const response = await apiClient.post('/api/v1/applications', data);
+      return response.data;
+    },
+    
+    get: async (id: string) => {
+      const response = await apiClient.get(`/api/v1/applications/${id}`);
+      return response.data;
+    },
+    
+    list: async () => {
+      const response = await apiClient.get('/api/v1/applications');
+      return response.data;
+    },
+    
+    preCheck: async (data: {
+      amount: number;
+      term: number;
+      monthly_income: number;
+      monthly_expenses: number;
+      existing_payments: number;
+    }) => {
+      const response = await apiClient.post('/api/v1/applications/pre-check', data);
+      return response.data;
+    },
+    
+    getScoring: async (id: string) => {
+      const response = await apiClient.get(`/api/v1/applications/${id}/scoring`);
+      return response.data;
+    },
+    
+    getOffers: async (id: string) => {
+      const response = await apiClient.get(`/api/v1/applications/${id}/offers`);
+      return response.data;
+    },
+    
+    downloadReport: async (id: string) => {
+      const response = await apiClient.get(`/api/v1/applications/${id}/report`, {
+        responseType: 'blob',
+      });
+      return response.data;
+    },
   },
-  
-  logout: async (token: string) => {
-    const response = await api.post('/api/v1/auth/logout', { token });
-    return response.data;
+
+  // Bank offers endpoints
+  offers: {
+    list: async (params?: {
+      min_amount?: number;
+      max_amount?: number;
+      term?: number;
+      is_active?: boolean;
+    }) => {
+      const response = await apiClient.get('/api/v1/offers', { params });
+      return response.data;
+    },
+    
+    get: async (id: string) => {
+      const response = await apiClient.get(`/api/v1/offers/${id}`);
+      return response.data;
+    },
+    
+    featured: async () => {
+      const response = await apiClient.get('/api/v1/offers/featured');
+      return response.data;
+    },
+    
+    compare: async (ids: string[]) => {
+      const response = await apiClient.post('/api/v1/offers/compare', { offer_ids: ids });
+      return response.data;
+    },
+    
+    calculate: async (id: string, data: { amount: number; term: number }) => {
+      const response = await apiClient.post(`/api/v1/offers/${id}/calculate`, data);
+      return response.data;
+    },
   },
-  
-  checkPhone: async (phone: string) => {
-    const response = await api.get('/api/v1/auth/check-phone', { params: { phone } });
-    return response.data;
+
+  // Personal data endpoints
+  personalData: {
+    get: async () => {
+      const response = await apiClient.get('/api/v1/personal-data');
+      return response.data;
+    },
+    
+    createOrUpdate: async (data: any) => {
+      const response = await apiClient.post('/api/v1/personal-data', data);
+      return response.data;
+    },
+    
+    validate: async (data: any) => {
+      const response = await apiClient.post('/api/v1/personal-data/validate', data);
+      return response.data;
+    },
+    
+    checkCompleteness: async () => {
+      const response = await apiClient.get('/api/v1/personal-data/completeness');
+      return response.data;
+    },
+    
+    export: async () => {
+      const response = await apiClient.get('/api/v1/personal-data/export');
+      return response.data;
+    },
+  },
+
+  // Referrals endpoints
+  referrals: {
+    getCode: async () => {
+      const response = await apiClient.get('/api/v1/referrals/code');
+      return response.data;
+    },
+    
+    getStats: async () => {
+      const response = await apiClient.get('/api/v1/referrals/stats');
+      return response.data;
+    },
+    
+    getTree: async (depth: number = 3) => {
+      const response = await apiClient.get('/api/v1/referrals/tree', {
+        params: { depth },
+      });
+      return response.data;
+    },
+    
+    getTop: async (limit: number = 10) => {
+      const response = await apiClient.get('/api/v1/referrals/top', {
+        params: { limit },
+      });
+      return response.data;
+    },
+    
+    getPromo: async () => {
+      const response = await apiClient.get('/api/v1/referrals/promo');
+      return response.data;
+    },
+  },
+
+  // Calculator endpoints (public)
+  calculator: {
+    loan: async (data: { amount: number; term: number; rate: number }) => {
+      const response = await apiClient.post('/api/v1/applications/calculate', data);
+      return response.data;
+    },
+    
+    pdn: async (data: {
+      monthly_income: number;
+      monthly_expenses: number;
+      loan_amount: number;
+      loan_term: number;
+      annual_rate: number;
+      existing_payments?: number;
+    }) => {
+      const response = await apiClient.post('/api/v1/applications/calculate-pdn', data);
+      return response.data;
+    },
   },
 };
 
-// Applications API
-export const applicationsApi = {
-  create: async (data: any) => {
-    const response = await api.post('/api/v1/applications', data);
-    return response.data;
-  },
-  
-  getCurrent: async () => {
-    const response = await api.get('/api/v1/applications/current');
-    return response.data;
-  },
-  
-  send: async (id: string) => {
-    const response = await api.put(`/api/v1/applications/${id}/send`);
-    return response.data;
-  },
-  
-  getHistory: async () => {
-    const response = await api.get('/api/v1/applications/history');
-    return response.data;
-  },
-};
-
-// Offers API
-export const offersApi = {
-  getPreliminary: async (applicationId: string) => {
-    const response = await api.get('/api/v1/offers/preliminary', { 
-      params: { application_id: applicationId } 
-    });
-    return response.data;
-  },
-  
-  getFinal: async (applicationId: string) => {
-    const response = await api.get('/api/v1/offers/final', { 
-      params: { application_id: applicationId } 
-    });
-    return response.data;
-  },
-  
-  getById: async (id: string) => {
-    const response = await api.get(`/api/v1/offers/${id}`);
-    return response.data;
-  },
-};
-
-// Personal Data API
-export const personalDataApi = {
-  create: async (data: any) => {
-    const response = await api.post('/api/v1/personal-data', data);
-    return response.data;
-  },
-  
-  get: async () => {
-    const response = await api.get('/api/v1/personal-data');
-    return response.data;
-  },
-  
-  update: async (data: any) => {
-    const response = await api.put('/api/v1/personal-data', data);
-    return response.data;
-  },
-  
-  getScoring: async () => {
-    const response = await api.get('/api/v1/personal-data/scoring');
-    return response.data;
-  },
-};
-
-// Referrals API
-export const referralsApi = {
-  getMyCode: async () => {
-    const response = await api.get('/api/v1/referrals/my-code');
-    return response.data;
-  },
-  
-  getStats: async () => {
-    const response = await api.get('/api/v1/referrals/stats');
-    return response.data;
-  },
-  
-  getLink: async () => {
-    const response = await api.get('/api/v1/referrals/link');
-    return response.data;
-  },
-};
-
-export default api;
+export default apiClient;
