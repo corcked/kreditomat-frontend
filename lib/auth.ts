@@ -8,6 +8,15 @@ interface AuthResponse {
   is_new_user: boolean;
 }
 
+// Export individual functions for backward compatibility
+export const getToken = () => AuthService.getToken();
+export const setToken = (token: string) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('access_token', token);
+  }
+};
+export const removeToken = () => AuthService.clearAuth();
+
 export class AuthService {
   static getToken(): string | null {
     if (typeof window === 'undefined') return null;

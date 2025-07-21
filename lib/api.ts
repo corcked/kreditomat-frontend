@@ -67,6 +67,34 @@ apiClient.interceptors.response.use(
   }
 );
 
+// Export auth namespace separately for backward compatibility
+export const authApi = {
+  request: async (data: { phone_number: string }) => {
+    const response = await apiClient.post('/api/v1/auth/request', data);
+    return response.data;
+  },
+  
+  verify: async (data: { phone_number: string; code: string }) => {
+    const response = await apiClient.post('/api/v1/auth/verify', data);
+    return response.data;
+  },
+  
+  logout: async (token?: string) => {
+    const response = await apiClient.post('/api/v1/auth/logout');
+    return response.data;
+  },
+  
+  checkPhone: async (phone: string) => {
+    const response = await apiClient.get('/api/v1/auth/check-phone', { params: { phone } });
+    return response.data;
+  },
+  
+  getMe: async () => {
+    const response = await apiClient.get('/api/v1/auth/me');
+    return response.data;
+  },
+};
+
 // API namespace with all endpoints
 export const api = {
   // Auth endpoints
