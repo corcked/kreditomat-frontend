@@ -7,7 +7,38 @@ const nextConfig = {
   },
   images: {
     domains: ['example.com', 'localhost'],
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60,
   },
+  // Performance optimizations
+  swcMinify: true,
+  compress: true,
+  poweredByHeader: false,
+  // Optimize production builds
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  // Enable experimental features for better performance
+  experimental: {
+    optimizeCss: true,
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-*'],
+  },
+  // Bundle analyzer
+  ...(process.env.ANALYZE === 'true' && {
+    webpack: (config, { isServer }) => {
+      if (!isServer) {
+        const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
+        config.plugins.push(
+          new BundleAnalyzerPlugin({
+            analyzerMode: 'static',
+            reportFilename: './analyze/client.html',
+            openAnalyzer: false,
+          })
+        )
+      }
+      return config
+    },
+  }),
 }
 
 module.exports = nextConfig
