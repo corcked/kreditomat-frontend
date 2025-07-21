@@ -25,7 +25,9 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    logErrorBoundary(error, errorInfo)
+    logErrorBoundary(error, {
+      componentStack: errorInfo.componentStack || ''
+    })
   }
 
   handleReset = () => {
