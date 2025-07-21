@@ -288,11 +288,11 @@ export function usePermission(permission: string): boolean {
   // Add permission logic here based on user roles/attributes
   switch (permission) {
     case "create_application":
-      return user.is_verified
+      return Boolean(user.is_verified)
     case "view_referrals":
       return !!user.referral_code
     case "access_premium":
-      return user.is_verified && user.has_personal_data
+      return Boolean(user.is_verified && user.has_personal_data)
     default:
       return false
   }
