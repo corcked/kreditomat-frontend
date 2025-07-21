@@ -55,7 +55,7 @@ export default function VerifyPage() {
     if (fullCode.length === 6) {
       handleSubmit(fullCode)
     }
-  }, [code])
+  }, [code]) // eslint-disable-line react-hooks/exhaustive-deps
   
   const handleCodeChange = (index: number, value: string) => {
     // Only allow digits

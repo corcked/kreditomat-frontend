@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Checkbox } from "@/components/ui/checkbox"
 import BankCard, { BankOffer } from "@/components/ui/bank-card"
 import ScoringGauge from "@/components/ui/scoring-gauge"
 import PDNIndicator from "@/components/ui/pdn-indicator"
@@ -90,7 +91,7 @@ export default function OffersPage() {
     }
     
     loadApplication(applicationId)
-  }, [router])
+  }, [router]) // eslint-disable-line react-hooks/exhaustive-deps
   
   const loadApplication = async (applicationId: string) => {
     setLoading(true)

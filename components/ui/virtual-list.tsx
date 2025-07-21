@@ -39,7 +39,7 @@ export default function VirtualList<T>({
         setScrollTop(containerRef.current.scrollTop)
       }
     }, 16), // ~60fps
-    []
+    [] // eslint-disable-line react-hooks/exhaustive-deps
   )
   
   useEffect(() => {
