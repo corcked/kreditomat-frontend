@@ -132,12 +132,13 @@ export default function NewApplicationPage() {
             <div>
               <h4 className="text-sm font-medium mb-2">Показатель долговой нагрузки</h4>
               <PDNIndicator 
-                monthlyIncome={currentFormData?.monthlyIncome || 0}
-                monthlyExpenses={currentFormData?.monthlyExpenses || 0}
-                creditPayments={
-                  (currentCalculation?.monthlyPayment || 0) + 
-                  (currentFormData?.existingPayments || 0)
+                pdn={currentFormData?.monthlyIncome ? 
+                  (((currentCalculation?.monthlyPayment || 0) + (currentFormData?.existingPayments || 0)) / currentFormData.monthlyIncome * 100) 
+                  : 0
                 }
+                monthlyIncome={currentFormData?.monthlyIncome || 0}
+                monthlyPayment={currentCalculation?.monthlyPayment || 0}
+                otherPayments={currentFormData?.existingPayments || 0}
                 showDetails={false}
               />
             </div>
