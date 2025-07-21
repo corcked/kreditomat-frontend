@@ -329,9 +329,10 @@ export default function OffersPage() {
             </CardHeader>
             <CardContent>
               <PDNIndicator
+                pdn={application.pdn_calculation.pdn_ratio}
                 monthlyIncome={application.pdn_calculation.monthly_income}
-                monthlyExpenses={application.pdn_calculation.monthly_expenses}
-                creditPayments={application.pdn_calculation.credit_payments}
+                monthlyPayment={application.pdn_calculation.new_credit_payment || 0}
+                otherPayments={application.pdn_calculation.existing_credit_payments || 0}
                 showDetails={false}
               />
             </CardContent>

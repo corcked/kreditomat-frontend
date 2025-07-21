@@ -419,9 +419,13 @@ export default function LoanForm({
                 {showPDN && (
                   <div className="mt-4">
                     <PDNIndicator
+                      pdn={formData.monthlyIncome > 0 ? 
+                        ((calculation.monthlyPayment + formData.existingPayments) / formData.monthlyIncome * 100) 
+                        : 0
+                      }
                       monthlyIncome={formData.monthlyIncome}
-                      monthlyExpenses={formData.monthlyExpenses}
-                      creditPayments={calculation.monthlyPayment + formData.existingPayments}
+                      monthlyPayment={calculation.monthlyPayment}
+                      otherPayments={formData.existingPayments}
                       showDetails
                     />
                   </div>
