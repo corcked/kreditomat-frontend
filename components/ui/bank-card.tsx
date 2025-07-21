@@ -349,7 +349,7 @@ export default function BankCard({
           <Button
             size="sm"
             onClick={() => onSelect(offer)}
-            disabled={hasUserData && !isEligible}
+            disabled={Boolean(hasUserData && !isEligible)}
             className="flex-1"
           >
             Оформить заявку
