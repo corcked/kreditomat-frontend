@@ -1,10 +1,29 @@
-import axios, { AxiosError, AxiosInstance } from 'axios';
+import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
 
 // API base URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 30000,
+});
+
+// Retry configuration
+interface RetryConfig extends AxiosRequestConfig {
+  retry?: number;
+  retryDelay?: number;
+  __retryCount?: number;
+}
+
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY = 1000; // 1 second
+
+// Create public axios instance (without auth interceptor)
+const publicApiClient: AxiosInstance = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
@@ -58,6 +77,61 @@ apiClient.interceptors.response.use(
     }
     
     // Network error
+    if (!error.response) {
+      const networkError = new Error('Ошибка сети. Проверьте подключение к интернету.');
+      return Promise.reject(networkError);
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor for public API client (without auth handling)
+publicApiClient.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const config = error.config as RetryConfig;
+    
+    // Implement retry logic for network errors
+    if (!error.response && config && !config.__retryCount) {
+      config.__retryCount = 0;
+    }
+    
+    if (
+      !error.response &&
+      config &&
+      config.__retryCount !== undefined &&
+      config.__retryCount < MAX_RETRY_ATTEMPTS
+    ) {
+      config.__retryCount++;
+      
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * config.__retryCount));
+      
+      // Retry the request
+      return publicApiClient(config);
+    }
+    
+    if (error.response) {
+      // Extract error message
+      const data = error.response.data as any;
+      const message = data?.detail || data?.message || 'Произошла ошибка';
+      
+      // Create new error with message
+      const customError = new Error(message);
+      (customError as any).status = error.response.status;
+      (customError as any).data = data;
+      
+      return Promise.reject(customError);
+    }
+    
+    // Network error after retries
+    if (!error.response && error.code === 'ECONNABORTED') {
+      // Timeout error
+      const timeoutError = new Error('Превышено время ожидания. Попробуйте еще раз.');
+      return Promise.reject(timeoutError);
+    }
+    
     if (!error.response) {
       const networkError = new Error('Ошибка сети. Проверьте подключение к интернету.');
       return Promise.reject(networkError);
@@ -283,6 +357,38 @@ export const api = {
       return response.data;
     },
   },
+
+  // Public endpoints (no auth required)
+  public: {
+    // Calculate loan without authorization
+    calculateLoan: async (data: {
+      amount: number;
+      term: number;
+      rate?: number;
+    }) => {
+      const response = await publicApiClient.post('/api/v1/public/calculate-loan', data);
+      return response.data;
+    },
+
+    // Pre-check eligibility without authorization
+    preCheck: async (data: {
+      amount: number;
+      term: number;
+      monthly_income: number;
+      monthly_expenses: number;
+      existing_payments: number;
+    }) => {
+      const response = await publicApiClient.post('/api/v1/public/pre-check', data);
+      return response.data;
+    },
+
+    // Get featured offers without authorization
+    getFeaturedOffers: async () => {
+      const response = await publicApiClient.get('/api/v1/public/offers/featured');
+      return response.data;
+    },
+  },
 };
 
 export default apiClient;
+export { publicApiClient };
