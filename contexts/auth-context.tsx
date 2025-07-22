@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { useRouter, usePathname } from "next/navigation"
 import { api } from "@/lib/api"
 import { getToken, setToken, removeToken } from "@/lib/auth"
+import { getLoanData, isLoanDataExpired } from "@/lib/loan-storage"
 
 interface User {
   id: string
@@ -23,12 +24,14 @@ interface AuthContextType {
   loading: boolean
   error: string | null
   isAuthenticated: boolean
+  isInLoanFlow: boolean
   
   // Auth methods
-  login: (phoneNumber: string) => Promise<void>
-  verify: (phoneNumber: string, code: string) => Promise<void>
+  login: (phoneNumber: string, context?: string) => Promise<void>
+  verify: (phoneNumber: string, code: string, context?: string) => Promise<void>
   logout: () => Promise<void>
   checkAuth: () => Promise<void>
+  continueWithLoan: () => boolean
   
   // User methods
   updateUser: (userData: Partial<User>) => void
@@ -51,6 +54,7 @@ const publicRoutes = [
 
 // Routes that require authentication
 const protectedRoutes = [
+  "/loan/checkout",
   "/application/personal-data",
   "/application/offers",
   "/profile",
@@ -63,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isInLoanFlow, setIsInLoanFlow] = useState(false)
   
   const isAuthenticated = !!user && !!getToken()
   
@@ -113,10 +118,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [loading, pathname, isAuthenticated, requiresAuth, router])
   
+  // Check if user is in loan flow
+  const continueWithLoan = useCallback(() => {
+    const loanData = getLoanData()
+    return loanData !== null && !isLoanDataExpired()
+  }, [])
+  
   // Login method
-  const login = async (phoneNumber: string) => {
+  const login = async (phoneNumber: string, context?: string) => {
     setLoading(true)
     setError(null)
+    
+    // Set loan flow state if context is provided
+    if (context === 'loan_flow') {
+      setIsInLoanFlow(true)
+    }
     
     try {
       await api.auth.request({ phone_number: phoneNumber })
@@ -130,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
   
   // Verify method
-  const verify = async (phoneNumber: string, code: string) => {
+  const verify = async (phoneNumber: string, code: string, context?: string) => {
     setLoading(true)
     setError(null)
     
@@ -148,12 +164,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const redirectPath = sessionStorage.getItem("redirectAfterLogin")
         sessionStorage.removeItem("redirectAfterLogin")
         
-        // Check if we're in loan flow (coming from /loan/checkout)
-        const isLoanFlow = redirectPath === "/loan/checkout" || pathname === "/loan/checkout"
+        // Check if we're in loan flow
+        const hasLoanData = continueWithLoan()
+        const inLoanFlow = isInLoanFlow || context === 'loan_flow' || 
+                          redirectPath === "/loan/checkout" || 
+                          pathname === "/loan/checkout" ||
+                          hasLoanData
         
         // Redirect based on context and user state
-        if (isLoanFlow) {
+        if (inLoanFlow) {
           // In loan flow, always go to personal data
+          setIsInLoanFlow(false) // Reset the state
           router.push("/application/personal-data")
         } else if (redirectPath) {
           router.push(redirectPath)
@@ -235,10 +256,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     error,
     isAuthenticated,
+    isInLoanFlow,
     login,
     verify,
     logout,
     checkAuth,
+    continueWithLoan,
     updateUser,
     clearError
   }

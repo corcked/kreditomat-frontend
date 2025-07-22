@@ -8,11 +8,13 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import BankCard, { BankOffer } from "@/components/ui/bank-card"
 import ScoringGauge from "@/components/ui/scoring-gauge"
 import PDNIndicator from "@/components/ui/pdn-indicator"
 import { api } from "@/lib/api"
 import { getToken } from "@/lib/auth"
+import { getLoanData, isLoanDataExpired } from "@/lib/loan-storage"
 import { 
   CheckCircle,
   Filter,
@@ -84,13 +86,26 @@ export default function OffersPage() {
       return
     }
     
-    const applicationId = sessionStorage.getItem("applicationId")
-    if (!applicationId) {
-      router.push("/application/new")
-      return
+    // First check localStorage for loan data
+    const loanData = getLoanData()
+    if (loanData && !isLoanDataExpired()) {
+      // If we have loan data but no application ID, user might be coming from loan flow
+      const applicationId = sessionStorage.getItem("applicationId")
+      if (!applicationId) {
+        // Redirect to personal data to complete the application
+        router.push("/application/personal-data")
+        return
+      }
+      loadApplication(applicationId)
+    } else {
+      // Fallback to session storage
+      const applicationId = sessionStorage.getItem("applicationId")
+      if (!applicationId) {
+        router.push("/application/new")
+        return
+      }
+      loadApplication(applicationId)
     }
-    
-    loadApplication(applicationId)
   }, [router]) // eslint-disable-line react-hooks/exhaustive-deps
   
   const loadApplication = async (applicationId: string) => {
@@ -299,6 +314,57 @@ export default function OffersPage() {
             </div>
           </div>
         </div>
+        
+        {/* Loan Parameters Card */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Calculator className="w-5 h-5" />
+                Параметры займа
+              </span>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  // Save current application data to localStorage
+                  const loanData = getLoanData()
+                  if (loanData || application) {
+                    router.push("/application/new")
+                  }
+                }}
+              >
+                Изменить
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Сумма займа</p>
+                <p className="text-lg font-semibold">
+                  {new Intl.NumberFormat("ru-RU").format(application.amount)} сум
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Срок</p>
+                <p className="text-lg font-semibold">{application.term} месяцев</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Ежемесячный доход</p>
+                <p className="text-lg font-semibold">
+                  {new Intl.NumberFormat("ru-RU").format(application.pdn_calculation.monthly_income)} сум
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Платежеспособность</p>
+                <p className="text-lg font-semibold text-green-600">
+                  {Math.round((1 - application.pdn_calculation.pdn) * 100)}%
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         
         {/* Summary cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">

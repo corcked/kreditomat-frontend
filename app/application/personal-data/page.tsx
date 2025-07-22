@@ -9,8 +9,11 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { api } from "@/lib/api"
 import { getToken } from "@/lib/auth"
+import { getLoanData, isLoanDataExpired, getLoanSummary } from "@/lib/loan-storage"
+import { toast } from "sonner"
 import { 
   ArrowRight,
   ArrowLeft,
@@ -27,7 +30,9 @@ import {
   AlertCircle,
   Info,
   CheckCircle,
-  RefreshCw
+  RefreshCw,
+  Calculator,
+  Clock as ClockIcon
 } from "lucide-react"
 
 interface PersonalData {
@@ -93,6 +98,8 @@ export default function PersonalDataPage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [step, setStep] = useState(1) // 1: Personal, 2: Work, 3: Contacts
+  const [loanSummary, setLoanSummary] = useState<string | null>(null)
+  const [loanData, setLoanData] = useState<any>(null)
   
   const loadPersonalData = useCallback(async () => {
     setLoading(true)
@@ -123,11 +130,25 @@ export default function PersonalDataPage() {
       return
     }
     
-    // Check if we have application data
-    const appData = sessionStorage.getItem("applicationData")
-    if (!appData) {
-      router.push("/application/new")
-      return
+    // Check loan data from localStorage first
+    const storedLoanData = getLoanData()
+    if (storedLoanData && !isLoanDataExpired()) {
+      setLoanData(storedLoanData)
+      setLoanSummary(getLoanSummary())
+    } else {
+      // Fallback to sessionStorage
+      const appData = sessionStorage.getItem("applicationData")
+      if (!appData) {
+        toast.error("Данные займа не найдены. Пожалуйста, начните заново.")
+        router.push("/application/new")
+        return
+      }
+      try {
+        const parsed = JSON.parse(appData)
+        setLoanData(parsed)
+      } catch (e) {
+        console.error("Failed to parse application data:", e)
+      }
     }
     
     // Load existing personal data
@@ -274,7 +295,7 @@ export default function PersonalDataPage() {
   
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="container max-w-4xl mx-auto py-8 px-4">
+      <div className="container max-w-6xl mx-auto py-8 px-4">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2">Персональные данные</h1>
@@ -309,54 +330,57 @@ export default function PersonalDataPage() {
           </div>
         </div>
         
-        {/* Step indicator */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setStep(1)}
-              className={`flex-1 py-2 text-center text-sm font-medium border-b-2 transition-colors ${
-                step === 1 
-                  ? "border-primary text-primary" 
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <User className="w-4 h-4" />
-                Личная информация
+        <div className="grid gap-8 lg:grid-cols-3">
+          {/* Main Form */}
+          <div className="lg:col-span-2">
+            {/* Step indicator */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setStep(1)}
+                  className={`flex-1 py-2 text-center text-sm font-medium border-b-2 transition-colors ${
+                    step === 1 
+                      ? "border-primary text-primary" 
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <User className="w-4 h-4" />
+                    Личная информация
+                  </div>
+                </button>
+                <button
+                  onClick={() => setStep(2)}
+                  disabled={!validateStep(1)}
+                  className={`flex-1 py-2 text-center text-sm font-medium border-b-2 transition-colors ${
+                    step === 2 
+                      ? "border-primary text-primary" 
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <Briefcase className="w-4 h-4" />
+                    Работа
+                  </div>
+                </button>
+                <button
+                  onClick={() => setStep(3)}
+                  disabled={!validateStep(1) || !validateStep(2)}
+                  className={`flex-1 py-2 text-center text-sm font-medium border-b-2 transition-colors ${
+                    step === 3 
+                      ? "border-primary text-primary" 
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <Phone className="w-4 h-4" />
+                    Контакты
+                  </div>
+                </button>
               </div>
-            </button>
-            <button
-              onClick={() => setStep(2)}
-              disabled={!validateStep(1)}
-              className={`flex-1 py-2 text-center text-sm font-medium border-b-2 transition-colors ${
-                step === 2 
-                  ? "border-primary text-primary" 
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <Briefcase className="w-4 h-4" />
-                Работа
-              </div>
-            </button>
-            <button
-              onClick={() => setStep(3)}
-              disabled={!validateStep(1) || !validateStep(2)}
-              className={`flex-1 py-2 text-center text-sm font-medium border-b-2 transition-colors ${
-                step === 3 
-                  ? "border-primary text-primary" 
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <Phone className="w-4 h-4" />
-                Контакты
-              </div>
-            </button>
-          </div>
-        </div>
-        
-        <Card>
+            </div>
+            
+            <Card>
           <CardContent className="pt-6">
             {/* Step 1: Personal Information */}
             {step === 1 && (
@@ -810,6 +834,110 @@ export default function PersonalDataPage() {
           </CardFooter>
         </Card>
       </div>
+      
+      {/* Loan Summary Sidebar */}
+      {loanData && (
+        <div className="lg:col-span-1">
+          <Card className="sticky top-4">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calculator className="w-5 h-5" />
+                Параметры займа
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Loan Amount */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Сумма займа</span>
+                  <CreditCard className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <p className="text-lg font-semibold">
+                  {new Intl.NumberFormat("ru-RU").format(loanData.amount)} сум
+                </p>
+              </div>
+              
+              {/* Loan Term */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Срок займа</span>
+                  <ClockIcon className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <p className="text-lg font-semibold">{loanData.term} месяцев</p>
+              </div>
+              
+              {/* Monthly Payment */}
+              {loanData.calculation && (
+                <div className="space-y-1 pt-2 border-t">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Ежемесячный платеж</span>
+                    <Calculator className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <p className="text-xl font-bold text-primary">
+                    {new Intl.NumberFormat("ru-RU").format(loanData.calculation.monthlyPayment)} сум
+                  </p>
+                </div>
+              )}
+              
+              {/* Income Info */}
+              <div className="space-y-1 pt-2 border-t">
+                <p className="text-sm text-muted-foreground">Ежемесячный доход</p>
+                <p className="font-medium">
+                  {new Intl.NumberFormat("ru-RU").format(loanData.monthlyIncome)} сум
+                </p>
+              </div>
+              
+              {/* PDN Indicator */}
+              {loanData.pdnCalculation && (
+                <div className="space-y-2 pt-2 border-t">
+                  <p className="text-sm text-muted-foreground">Долговая нагрузка (ПДН)</p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all ${
+                          loanData.pdnCalculation.pdn_ratio < 0.3 ? 'bg-green-500' :
+                          loanData.pdnCalculation.pdn_ratio < 0.5 ? 'bg-yellow-500' :
+                          'bg-red-500'
+                        }`}
+                        style={{ width: `${Math.min(loanData.pdnCalculation.pdn_ratio * 100, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-sm font-medium">
+                      {Math.round(loanData.pdnCalculation.pdn_ratio * 100)}%
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {/* Pre-check Status */}
+              {loanData.preCheckResult && (
+                <Alert className={loanData.preCheckResult.isEligible ? "border-green-200" : "border-yellow-200"}>
+                  <AlertDescription className="text-sm">
+                    {loanData.preCheckResult.isEligible ? (
+                      <span className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-500" />
+                        Предварительное одобрение получено
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-yellow-500" />
+                        Требуется дополнительная проверка
+                      </span>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              {/* Summary Text */}
+              {loanSummary && (
+                <div className="pt-2 border-t">
+                  <p className="text-xs text-muted-foreground">{loanSummary}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

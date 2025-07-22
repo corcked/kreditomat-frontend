@@ -5,11 +5,18 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import LoanForm, { LoanFormData, LoanCalculation } from "@/components/ui/loan-form"
 import ScoringGauge from "@/components/ui/scoring-gauge"
 import PDNIndicator from "@/components/ui/pdn-indicator"
 import { api } from "@/lib/api"
-import { getToken } from "@/lib/auth"
+import { 
+  saveLoanData, 
+  getLoanData, 
+  updatePreCheckResult,
+  LoanFormStorage,
+  PreCheckResult as StoredPreCheckResult
+} from "@/lib/loan-storage"
 import { 
   ArrowRight,
   Info,
@@ -19,7 +26,8 @@ import {
   CheckCircle,
   AlertCircle,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Home
 } from "lucide-react"
 
 interface PreCheckResult {
@@ -38,14 +46,58 @@ export default function NewApplicationPage() {
   const [error, setError] = useState("")
   const [currentFormData, setCurrentFormData] = useState<LoanFormData | null>(null)
   const [currentCalculation, setCurrentCalculation] = useState<LoanCalculation | null>(null)
+  const [initialData, setInitialData] = useState<Partial<LoanFormData> | undefined>()
+  const [isFromMainPage, setIsFromMainPage] = useState(false)
   
-  // Check authentication
+  // Load existing loan data from localStorage or sessionStorage
   useEffect(() => {
-    const token = getToken()
-    if (!token) {
-      router.push("/auth/login")
+    // First check localStorage (new flow)
+    const storedData = getLoanData()
+    if (storedData) {
+      setInitialData({
+        amount: storedData.amount,
+        term: storedData.term,
+        monthlyIncome: storedData.monthlyIncome,
+        monthlyExpenses: storedData.monthlyExpenses,
+        existingPayments: storedData.existingPayments
+      })
+      
+      if (storedData.calculation) {
+        setCurrentCalculation(storedData.calculation)
+      }
+      
+      if (storedData.preCheckResult) {
+        // Convert stored format to component format
+        setPreCheckResult({
+          estimated_score: storedData.preCheckResult.score || 0,
+          estimated_pdn: storedData.pdnCalculation?.pdn_ratio ? storedData.pdnCalculation.pdn_ratio * 100 : 0,
+          max_amount: storedData.amount,
+          recommendations: storedData.preCheckResult.recommendations || [],
+          eligible_offers_count: storedData.preCheckResult.isEligible ? 5 : 0,
+          special_offers: []
+        })
+      }
+      
+      setIsFromMainPage(true)
+    } else {
+      // Fallback to sessionStorage (old flow)
+      const sessionData = sessionStorage.getItem("applicationData")
+      if (sessionData) {
+        try {
+          const parsed = JSON.parse(sessionData)
+          setInitialData(parsed)
+          if (parsed.calculation) {
+            setCurrentCalculation(parsed.calculation)
+          }
+          if (parsed.preCheck) {
+            setPreCheckResult(parsed.preCheck)
+          }
+        } catch (e) {
+          console.error("Failed to parse session data:", e)
+        }
+      }
     }
-  }, [router])
+  }, [])
   
   const handleFormCalculate = (data: LoanFormData, calculation: LoanCalculation) => {
     setCurrentFormData(data)
@@ -57,7 +109,7 @@ export default function NewApplicationPage() {
     setError("")
     
     try {
-      // Perform pre-check
+      // Perform pre-check with authenticated API
       const preCheck = await api.applications.preCheck({
         amount: data.amount,
         term: data.term,
@@ -68,19 +120,59 @@ export default function NewApplicationPage() {
       
       setPreCheckResult(preCheck)
       
-      // Save application data to session storage
+      // Save to localStorage (new flow)
+      const loanDataToSave: LoanFormStorage = {
+        amount: data.amount,
+        term: data.term,
+        monthlyIncome: data.monthlyIncome,
+        monthlyExpenses: data.monthlyExpenses,
+        existingPayments: data.existingPayments,
+        calculation: calculation,
+        timestamp: Date.now()
+      }
+      
+      saveLoanData(loanDataToSave)
+      
+      // Update pre-check result
+      const storedPreCheck: StoredPreCheckResult = {
+        isEligible: preCheck.eligible_offers_count > 0,
+        score: preCheck.estimated_score,
+        recommendations: preCheck.recommendations,
+        estimatedApprovalRate: preCheck.eligible_offers_count > 0 ? 0.7 : 0.3
+      }
+      
+      updatePreCheckResult(storedPreCheck)
+      
+      // Also save to sessionStorage for backward compatibility
       sessionStorage.setItem("applicationData", JSON.stringify({
         ...data,
         calculation,
         preCheck
       }))
       
-      // If eligible, redirect to personal data
+      // Redirect based on eligibility
       if (preCheck.eligible_offers_count > 0) {
+        // For authenticated users, go directly to personal data
         router.push("/application/personal-data")
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Ошибка при проверке данных")
+      // Check if it's a 401 error
+      if (err.status === 401 || err.message?.includes('401')) {
+        // User is not authenticated, redirect to loan checkout
+        saveLoanData({
+          amount: data.amount,
+          term: data.term,
+          monthlyIncome: data.monthlyIncome,
+          monthlyExpenses: data.monthlyExpenses,
+          existingPayments: data.existingPayments,
+          calculation: calculation,
+          timestamp: Date.now()
+        })
+        
+        router.push("/loan/checkout")
+      } else {
+        setError(err.message || "Ошибка при проверке данных")
+      }
     } finally {
       setLoading(false)
     }
@@ -210,6 +302,16 @@ export default function NewApplicationPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="container max-w-4xl mx-auto py-8 px-4">
+        {/* From main page indicator */}
+        {isFromMainPage && (
+          <Alert className="mb-6 border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
+            <Home className="h-4 w-4" />
+            <AlertDescription>
+              Мы загрузили параметры займа, которые вы рассчитали на главной странице
+            </AlertDescription>
+          </Alert>
+        )}
+        
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2">Новая заявка на займ</h1>
@@ -295,6 +397,9 @@ export default function NewApplicationPage() {
           onCalculate={handleFormCalculate}
           showPDN={true}
           showTips={true}
+          initialData={initialData}
+          isLoading={loading}
+          submitButtonText="Проверить условия"
         />
         
         {/* Error display */}

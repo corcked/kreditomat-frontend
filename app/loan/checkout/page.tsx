@@ -159,6 +159,7 @@ export default function LoanCheckoutPage() {
                   <PhoneAuthForm
                     onSubmit={handlePhoneSubmit}
                     isLoading={false}
+                    context="loan_flow"
                   />
                   
                   <div className="mt-6 space-y-4">
@@ -211,6 +212,7 @@ export default function LoanCheckoutPage() {
                   phoneNumber={phoneNumber}
                   onSuccess={handleVerificationSuccess}
                   onBack={() => setShowVerification(false)}
+                  context="loan_flow"
                 />
               )}
             </CardContent>
