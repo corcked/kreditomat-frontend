@@ -47,6 +47,11 @@ export interface LoanFormProps {
   onCalculate?: (data: LoanFormData, calculation: LoanCalculation) => void
   showPDN?: boolean
   showTips?: boolean
+  showTitle?: boolean
+  showDescription?: boolean
+  submitButtonText?: string
+  initialData?: Partial<LoanFormData>
+  isLoading?: boolean
   className?: string
 }
 
@@ -68,14 +73,19 @@ export default function LoanForm({
   onCalculate,
   showPDN = true,
   showTips = true,
+  showTitle = true,
+  showDescription = true,
+  submitButtonText = "Рассчитать",
+  initialData,
+  isLoading = false,
   className
 }: LoanFormProps) {
   const [formData, setFormData] = useState<LoanFormData>({
-    amount: 5000000,
-    term: 12,
-    monthlyIncome: 10000000,
-    monthlyExpenses: 3000000,
-    existingPayments: 0
+    amount: initialData?.amount ?? 5000000,
+    term: initialData?.term ?? 12,
+    monthlyIncome: initialData?.monthlyIncome ?? 10000000,
+    monthlyExpenses: initialData?.monthlyExpenses ?? 3000000,
+    existingPayments: initialData?.existingPayments ?? 0
   })
   
   const [errors, setErrors] = useState<Partial<Record<keyof LoanFormData, string>>>({})
@@ -189,15 +199,21 @@ export default function LoanForm({
   
   return (
     <Card className={cn("w-full", className)}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Calculator className="w-5 h-5" />
-          Калькулятор займа
-        </CardTitle>
-        <CardDescription>
-          Рассчитайте условия вашего займа и узнайте ежемесячный платеж
-        </CardDescription>
-      </CardHeader>
+      {(showTitle || showDescription) && (
+        <CardHeader>
+          {showTitle && (
+            <CardTitle className="flex items-center gap-2">
+              <Calculator className="w-5 h-5" />
+              Калькулятор займа
+            </CardTitle>
+          )}
+          {showDescription && (
+            <CardDescription>
+              Рассчитайте условия вашего займа и узнайте ежемесячный платеж
+            </CardDescription>
+          )}
+        </CardHeader>
+      )}
       
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-6">
@@ -461,11 +477,13 @@ export default function LoanForm({
           <Button
             type="submit"
             className="flex-1"
-            disabled={calculation.pdnRiskLevel === "critical"}
+            disabled={calculation.pdnRiskLevel === "critical" || isLoading}
           >
-            {calculation.pdnRiskLevel === "critical" 
+            {isLoading 
+              ? "Расчет..." 
+              : calculation.pdnRiskLevel === "critical" 
               ? "Недоступно (высокий ПДН)" 
-              : "Подать заявку"}
+              : submitButtonText}
           </Button>
           
           {calculation.pdnRiskLevel === "critical" && (

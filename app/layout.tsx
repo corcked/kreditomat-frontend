@@ -14,13 +14,13 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://kreditomat.uz'),
-  title: 'Kreditomat - Микрозайм агрегатор',
-  description: 'Найдите лучшие предложения микрозаймов от банков Узбекистана',
-  keywords: 'микрозайм, кредит, займ онлайн, банки узбекистана, kreditomat',
+  title: 'Kreditomat - Калькулятор микрозаймов | Сравните предложения банков',
+  description: 'Рассчитайте микрозайм онлайн за 30 секунд. Сравните условия от ведущих банков и МФО Узбекистана. Проверка ПДН, мгновенное решение.',
+  keywords: 'калькулятор микрозаймов, микрозайм онлайн, кредитный калькулятор, займ без залога, банки узбекистана, пдн калькулятор, kreditomat',
   authors: [{ name: 'Kreditomat Team' }],
   openGraph: {
-    title: 'Kreditomat - Микрозайм агрегатор',
-    description: 'Найдите лучшие предложения микрозаймов от банков Узбекистана',
+    title: 'Kreditomat - Калькулятор микрозаймов онлайн',
+    description: 'Рассчитайте займ и узнайте решение за 30 секунд. Лучшие предложения от банков Узбекистана.',
     url: 'https://kreditomat.uz',
     siteName: 'Kreditomat',
     locale: 'ru_RU',
