@@ -51,7 +51,8 @@ const publicRoutes = [
 
 // Routes that require authentication
 const protectedRoutes = [
-  "/application",
+  "/application/personal-data",
+  "/application/offers",
   "/profile",
   "/referrals"
 ]
@@ -147,8 +148,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const redirectPath = sessionStorage.getItem("redirectAfterLogin")
         sessionStorage.removeItem("redirectAfterLogin")
         
-        // Redirect based on user state
-        if (redirectPath) {
+        // Check if we're in loan flow (coming from /loan/checkout)
+        const isLoanFlow = redirectPath === "/loan/checkout" || pathname === "/loan/checkout"
+        
+        // Redirect based on context and user state
+        if (isLoanFlow) {
+          // In loan flow, always go to personal data
+          router.push("/application/personal-data")
+        } else if (redirectPath) {
           router.push(redirectPath)
         } else if (!userData.has_personal_data) {
           router.push("/application/new")
